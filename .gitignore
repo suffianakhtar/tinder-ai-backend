@@ -44,3 +44,7 @@ logs/
 *.log
 *.tmp
 *.temp
+
+### Custom ###
+src/main/resources/static_images/
+profiles.json
