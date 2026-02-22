@@ -19,7 +19,6 @@ import io.javabrains.tinderaibackend.profiles.ProfileRepository;
 public class TinderAiBackendApplication implements CommandLineRunner {
 	@Autowired
 	private ProfileRepository profileRepository;
-
 	@Autowired
 	private ConversationRepository conversationRepository;
 
@@ -29,8 +28,14 @@ public class TinderAiBackendApplication implements CommandLineRunner {
 
 	@Override
 	public void run(String... args) {
+		// Clearing existing profiles and conversations
+		profileRepository.deleteAll();
+		conversationRepository.deleteAll();
+		
 		Profile profile = new Profile("1", "Sheifu", "Saif", 30, "Paki", Gender.MALE, "Software Engineer", "foo.jpg",
 				"INTP");
+		profileRepository.save(profile);
+		profile = new Profile("2", "Foo", "Bar", 35, "Irani", Gender.FEMALE, "Cook", "foo.jpg", "INTP");
 		profileRepository.save(profile);
 		profileRepository.findAll().forEach(System.out::println);
 
