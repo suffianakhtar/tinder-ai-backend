@@ -5,13 +5,21 @@ import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
+import io.javabrains.tinderaibackend.conversations.ConversationRepository;
+import io.javabrains.tinderaibackend.matches.MatchRepository;
 import io.javabrains.tinderaibackend.profiles.ProfileCreationService;
+import io.javabrains.tinderaibackend.profiles.ProfileRepository;
 
 @SpringBootApplication
 public class TinderAiBackendApplication implements CommandLineRunner {
 	@Autowired
 	private ProfileCreationService profileCreationService;
-
+	@Autowired
+	private MatchRepository matchRepository;
+	@Autowired
+	private ConversationRepository conversationRepository;
+	@Autowired
+	private ProfileRepository profileRepository;
 
 	public static void main(String[] args) {
 		SpringApplication.run(TinderAiBackendApplication.class, args);
@@ -19,7 +27,14 @@ public class TinderAiBackendApplication implements CommandLineRunner {
 
 	@Override
 	public void run(String... args) {
+		clearAll();
 		profileCreationService.saveProfilesToDb();
+	}
+
+	private void clearAll() {
+		conversationRepository.deleteAll();
+		matchRepository.deleteAll();
+		profileRepository.deleteAll();
 	}
 
 }

@@ -48,3 +48,4 @@ logs/
 ### Custom ###
 src/main/resources/static_images/
 profiles.json
+src/main/resources/application.properties

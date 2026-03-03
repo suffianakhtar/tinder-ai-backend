@@ -14,17 +14,20 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
+import io.javabrains.tinderaibackend.profiles.Profile;
 import io.javabrains.tinderaibackend.profiles.ProfileRepository;
 
 @RestController
 public class ConversationController {
 	private ConversationRepository conversationRepository;
 	private ProfileRepository profileRepository;
+	private ConversationService conversationService;
 
 	@Autowired
-	public ConversationController(ConversationRepository conversationRepository, ProfileRepository profileRespository) {
+	public ConversationController(ConversationRepository conversationRepository, ProfileRepository profileRespository, ConversationService conversationService) {
 		this.conversationRepository = conversationRepository;
 		this.profileRepository = profileRespository;
+		this.conversationService = conversationService;
 	}
 
 	@PostMapping("/conversations")
@@ -63,8 +66,10 @@ public class ConversationController {
 		Conversation conversation = conversationRepository.findById(conversationId)
 				.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
 						"Unable to find conversation with ID" + conversationId));
+		String matchProfileId = conversation.profileId();
+		Profile profile = profileRepository.findById(matchProfileId).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Unable to find profile with ID" + matchProfileId));
 
-		profileRepository.findById(chatMessage.authorId())
+		Profile user = profileRepository.findById(chatMessage.authorId())
 				.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
 						"Unable to find profile with ID" + chatMessage.authorId()));
 
@@ -74,6 +79,7 @@ public class ConversationController {
 		ChatMessage messageWithTime = new ChatMessage(chatMessage.messageText(), chatMessage.authorId(),
 				LocalDateTime.now());
 		conversation.messages().add(messageWithTime);
+		conversationService.generateProfileResponce(conversation, profile, user);
 		conversationRepository.save(conversation);
 		return conversation;
 	}
