@@ -11,7 +11,9 @@ import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.ai.ollama.OllamaChatModel;
+import org.springframework.ai.ollama.api.OllamaChatOptions;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import io.javabrains.tinderaibackend.profiles.Profile;
@@ -19,6 +21,9 @@ import io.javabrains.tinderaibackend.profiles.Profile;
 @Service
 public class ConversationService {
 	private final OllamaChatModel ollamaChatModel;
+	
+	@Value("${spring.ai.ollama.chat.options.model}")
+	private static String MODEL_NAME;
 	
 	@Autowired
 	public ConversationService(OllamaChatModel ollamaChatModel) {
@@ -58,7 +63,7 @@ public class ConversationService {
 		allMessages.add(systemMessage);
 		allMessages.addAll(conversationMessages);
 		
-		Prompt prompt = new Prompt(allMessages);
+		Prompt prompt = new Prompt(allMessages, OllamaChatOptions.builder().model(MODEL_NAME).build());
 		ChatResponse response = ollamaChatModel.call(prompt);
         conversation.messages().add(new ChatMessage(
         	response.getResult().getOutput().getText(),

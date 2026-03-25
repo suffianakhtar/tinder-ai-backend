@@ -28,7 +28,8 @@ public class TinderAiBackendApplication implements CommandLineRunner {
 	@Override
 	public void run(String... args) {
 		clearAll();
-		profileCreationService.createProfiles(5);
+		profileCreationService.createProfiles(15);
+//		profileCreationService.saveProfilesToJson();
 		profileCreationService.saveProfilesToDb();
 	}
 

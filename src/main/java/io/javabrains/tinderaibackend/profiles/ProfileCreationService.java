@@ -5,9 +5,12 @@ import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 
 import org.springframework.ai.chat.prompt.Prompt;
@@ -20,6 +23,9 @@ import org.springframework.stereotype.Service;
 
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
+
+import io.javabrains.tinderaibackend.common.comfyui.ComfyUIRequest;
+import io.javabrains.tinderaibackend.common.comfyui.ComfyUIService;
 
 @Service
 public class ProfileCreationService {
@@ -34,6 +40,8 @@ public class ProfileCreationService {
 
 	private ProfileTools profileTools;
 
+	private ComfyUIService comfyUIService;
+
 	private List<Profile> generatedProfiles = new ArrayList<>();
 
 	@Value("${startup-actions.initializeProfile}")
@@ -42,20 +50,24 @@ public class ProfileCreationService {
 	@Value("${tinderai.lookingForGender}")
 	private String lookingForGender;
 
+	@Value("${images-output-folder}")
+	private String imagesFolder;
+
 	@Autowired
 	public ProfileCreationService(ProfileRepository profileRepository, OllamaChatModel ollamaChatModel,
-			ProfileTools profileTools) {
+			ProfileTools profileTools, ComfyUIService comfyUIService) {
 		this.profileRepository = profileRepository;
 		this.ollamaChatModel = ollamaChatModel;
 		this.profileTools = profileTools;
+		this.comfyUIService = comfyUIService;
 	}
 
 	public void createProfiles(int numberOfProfiles) {
 		if (!initializeProfiles) {
 			return;
 		}
-		List<Integer> ages = List.of(20, 25, 30, 35, 40);
-		List<String> ethnicities = List.of("White", "Black", "Asian", "Indian", "Native American", "Hispanic");
+		List<Integer> ages = List.of(18, 20, 22, 25, 27, 30, 33, 36);
+		List<String> ethnicities = List.of("White", "Black", "Asian", "Indian", "Native American", "Hispanic", "Middle Eastern", "Pacific Islander", "Multiracial");
 
 		profileTools.setGeneratedProfiles(this.generatedProfiles);
 
@@ -83,7 +95,7 @@ public class ProfileCreationService {
 		saveProfilesToJson(this.generatedProfiles);
 	}
 
-	private void saveProfilesToJson(List<Profile> generatedProfiles) {
+	public void saveProfilesToJson(List<Profile> generatedProfiles) {
 		Gson gson = new Gson();
 		File file = new File(PROFILES_FILE_PATH);
 
@@ -99,10 +111,12 @@ public class ProfileCreationService {
 				e.printStackTrace();
 			}
 		}
-		
-		for (Profile profile : generatedProfiles) {
+
+		for (int i = 0; i < generatedProfiles.size(); i++) {
+			Profile profile = generatedProfiles.get(i);
 			if (profile.imageUrl() == null) {
-				profile = generateProfileImage(profile);
+				Profile updatedProfile = generateProfileImage(profile);
+				generatedProfiles.set(i, updatedProfile);
 			}
 		}
 
@@ -114,9 +128,42 @@ public class ProfileCreationService {
 		}
 	}
 
-	private Profile generateProfileImage(Profile profile) {
-		
-		return null;
+	public Profile generateProfileImage(Profile profile) {
+		StringBuilder positivePrompt = new StringBuilder();
+		positivePrompt.append("RAW photo, (realistic:1.4), portrait of a ").append(profile.age());
+		positivePrompt.append(" year old ");
+		positivePrompt.append(profile.ethnicity()).append(" ");
+		positivePrompt.append(toNaturalLanguage(profile.gender())).append(" ");
+		positivePrompt.append("beautiful face, detailed eyes, natural skin,");
+		positivePrompt.append(" photorealistic, 8k, sharp focus, professional headshot");
+
+		String negativePrompt = "ugly, deformed, disfigured, mutated, extra limbs, "
+				+ "blurry, low quality, cartoon, anime, painting, "
+				+ "bad anatomy, bad eyes, neon, overexposed, psychedelic";
+
+		ComfyUIRequest request = new ComfyUIRequest(positivePrompt.toString(), negativePrompt, 30, "dpmpp_2m", 512,
+				512, 7.0);
+
+		// Generate image
+		// Save the generated image in the resources folder
+		// Link the image name to the profile's image URL field
+		try {
+			byte[] imageBytes = comfyUIService.generateImage(request);
+			Path folder = Path.of(imagesFolder);
+			if (!Files.exists(folder)) {
+				Files.createDirectories(folder);
+			}
+			String filename = "profile_" + UUID.randomUUID() + ".png";
+			Path filePath = folder.resolve(filename);
+			Files.write(filePath, imageBytes);
+
+			return new Profile(profile.id(), profile.firstName(), profile.lastName(), profile.age(),
+					profile.ethnicity(), profile.gender(), profile.bio(), "/images/" + filename,
+					profile.myersBriggsPersonalityType());
+		} catch (Exception e) {
+			e.printStackTrace();
+			return profile;
+		}
 	}
 
 	private String toNaturalLanguage(Gender gender) {
@@ -130,15 +177,14 @@ public class ProfileCreationService {
 	public void saveProfilesToDb() {
 		Gson gson = new Gson();
 		File file = new File(PROFILES_FILE_PATH);
-		
+
 		if (!file.exists()) {
 			return;
 		}
-		
+
 		try {
-			List<Profile> existingProfiles = gson.fromJson(new FileReader(file),
-					new TypeToken<ArrayList<Profile>>() {
-					}.getType());
+			List<Profile> existingProfiles = gson.fromJson(new FileReader(file), new TypeToken<ArrayList<Profile>>() {
+			}.getType());
 			profileRepository.deleteAll();
 			profileRepository.saveAll(existingProfiles);
 		} catch (FileNotFoundException e) {
